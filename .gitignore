@@ -1,0 +1,5 @@
+node_modules/
+
+.env
+
+# is it true that for peer - to -peer connections, you can only have two devices at any one time.
