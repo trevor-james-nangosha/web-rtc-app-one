@@ -6,6 +6,14 @@ let userID = String(Math.floor(Math.random() * 10000))
 let client;
 let channel;
 
+let queryString = window.location.search
+let urlParams = new URLSearchParams(queryString)
+let roomID = urlParams.get('room')
+
+if(!roomID){
+    window.location = 'lobby.html'
+}
+
 let localStream;
 let remoteStream;
 let peerConnection;
@@ -31,11 +39,12 @@ let init = async () => {
     await channel.join()
 
     channel.on('MemberJoin', handleUserJoined)
+    channel.on('MemberLeft', handleUserLeft)
     client.on('MessageFromPeer', handleMessageFromPeer)
 
     localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true})
     document.getElementById('user-1').srcObject = localStream
-    createOffer()
+    // createOffer()
 }
 
 let handleMessageFromPeer = (message, MemberID) => {
@@ -60,10 +69,15 @@ let handleUserJoined = async (MemberID) => {
     createOffer(MemberID)
 }
 
+let handleUserLeft = async (MemberID) => {
+    document.getElementById('user-2').style.display = 'none'
+}
+
 let createPeerConnection = async(MemberID) => {
     peerConnection = new RTCPeerConnection(servers)
     remoteStream = new MediaStream()
     document.getElementById('user-2').srcObject = remoteStream
+    document.getElementById('user-2').style.display = 'block'
 
     if(!localStream){
         localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true})
@@ -113,5 +127,12 @@ let addAnswer = async (answer) => {
         peerConnection.setRemoteDescription(answer)
     }
 }
+
+let userLeaveChannel = async () => {
+    await channel.leave()
+    await client.logout()
+}
+
+window.addEventListener('beforeunload', leaveChannel)
 
 init()
