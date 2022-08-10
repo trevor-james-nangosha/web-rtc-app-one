@@ -1,3 +1,11 @@
+const APP_ID = "4e3122251a6d4ae5be7db49e9436eecd"
+
+let token = null;
+let userID = String(Math.floor(Math.random() * 10000))
+
+let client;
+let channel;
+
 let localStream;
 let remoteStream;
 let peerConnection;
@@ -15,15 +23,52 @@ const servers = {
 // read about this stuff of webrtc
 
 let init = async () => {
+
+    client = await AgoraRTM.createInstance(APP_ID)
+    await client.login({userID, token})
+
+    channel = client.createChannel('main')
+    await channel.join()
+
+    channel.on('MemberJoin', handleUserJoined)
+    client.on('MessageFromPeer', handleMessageFromPeer)
+
     localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true})
     document.getElementById('user-1').srcObject = localStream
     createOffer()
 }
 
-let createOffer = async () => {
+let handleMessageFromPeer = (message, MemberID) => {
+    message = JSON.parse(message.text)
+    // console.log({'message': message})
+    if(message.type === 'offer'){
+        createAnswer(MemberID, message.offer)
+    }
+
+    if(message.type === 'answer'){
+        addAnswer(message.answer)
+    }
+
+    if(message.type === 'candidate'){
+        if(peerConnection)
+        peerConnection.addIceCandidate(message.candidate)
+    }
+}
+
+let handleUserJoined = async (MemberID) => {
+    console.log(`a new user has joined the channel: ${MemberID}`)
+    createOffer(MemberID)
+}
+
+let createPeerConnection = async(MemberID) => {
     peerConnection = new RTCPeerConnection(servers)
     remoteStream = new MediaStream()
     document.getElementById('user-2').srcObject = remoteStream
+
+    if(!localStream){
+        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true})
+        document.getElementById('user-1').srcObject = localStream  
+    }
 
     localStream.getTracks().forEach(track => {
         peerConnection.addTrack(track, localStream)
@@ -31,19 +76,42 @@ let createOffer = async () => {
 
     peerConnection.ontrack = (event) => {
         event.streams[0].getTracks().forEach(track => {
-            remoteStream.addTrack()
+            remoteStream.addTrack(track)
         })
     }
 
     peerConnection.onicecandidate = (event) => {
         if(event.candidate ){
-            console.log(`new ice candidate: ${event.candidate}`)
+            // console.log(`new ice candidate: ${event.candidate}`)
+            client.sendMessageToPeer({text: JSON.stringify({'type': 'candidate', 'candidate': offer})}, MemberID)
         }
     }
 
+}
+
+let createOffer = async (MemberID) => {
+    await createPeerConnection(MemberID)
     let offer = await peerConnection.createOffer()
     await peerConnection.setLocalDescription(offer)
-    console.log(offer)
+    // console.log(offer)
+
+    client.sendMessageToPeer({text: JSON.stringify({'type': 'offer', 'offer': offer})}, MemberID)
+    
+}
+
+let createAnswer = async (MemberID, offer) => {
+    await createPeerConnection(MemberID)
+    await peerConnection.setRemoteDescription(offer)
+    let answer = await peerConnection.createAnswer()
+    await peerConnection.setLocalDescription(answer)
+
+    client.sendMessageToPeer({text: JSON.stringify({'type': 'answer', 'answer': answer})}, MemberID)
+}
+
+let addAnswer = async (answer) => {
+    if(!peerConnection.currentRemoteDescription){
+        peerConnection.setRemoteDescription(answer)
+    }
 }
 
 init()
