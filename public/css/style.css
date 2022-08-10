@@ -38,7 +38,7 @@
     box-shadow: 3px 3px 15px -1px rgba(0,0,0,0.77);
     z-index: 999;
 }
-
+*/
 
 #controls{
     position: fixed;
@@ -79,4 +79,4 @@
             height: 20px;
             width: 20px;
         }
-} */
+} 

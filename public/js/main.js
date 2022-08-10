@@ -35,7 +35,7 @@ let init = async () => {
     client = await AgoraRTM.createInstance(APP_ID)
     await client.login({userID, token})
 
-    channel = client.createChannel('main')
+    channel = client.createChannel(roomID)
     await channel.join()
 
     channel.on('MemberJoin', handleUserJoined)
@@ -133,6 +133,8 @@ let userLeaveChannel = async () => {
     await client.logout()
 }
 
-window.addEventListener('beforeunload', leaveChannel)
+
+
+window.addEventListener('beforeunload', userLeaveChannel)
 
 init()
